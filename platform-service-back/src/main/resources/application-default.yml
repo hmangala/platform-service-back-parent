@@ -1,0 +1,74 @@
+#
+# Copyright (C) Davinta Technologies 2017. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Davinta Technologies. You shall not disclose such Confidential Information
+# and shall use it only in accordance with the terms and conditions
+# entered into with Davinta Technologies.
+#
+
+#### REGULUS CUSTOMER SERVICE APPLICATION DEFAULT CONFIGURATIONS
+
+## SSL CONFIGURATIONS
+server:
+  ssl:
+    enabled: false
+    key-alias: aeusapp
+    key-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+    key-store: D:/platform/certs/aeusapp-keystore.jks
+    key-store-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+    trust-store: D:/platform/certs/aeusapp-truststore.jks
+    trust-store-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+
+
+## REST CLIENT SSL CONFIGURATIONS
+rest:
+  client:
+    ssl:
+      enabled: false
+      key-alias: aeusapp
+      key-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+      key-store: D:/platform/certs/aeusapp-keystore.jks
+      key-store-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+      trust-store: D:/platform/certs/aeusapp-truststore.jks
+      trust-store-password: ENC(42039B89B9855AB0FF016ABAF3D1718BDE2B3F3093845587)
+
+
+## SPRING CONFIGURATIONS
+spring:
+  # ZIPKIN CONFIGURATIONS
+  zipkin:
+      baseUrl: http://localhost:5000
+
+
+## FLYWAY CONFIGURATIONS
+flyway:
+  enabled: false
+  outOfOrder: false
+  
+## SERVICE CONFIGURATIONS
+AdminService:
+  url: http://localhost:9300
+AdapterService:
+  url: http://localhost:9400
+
+## KAFKA CONFIGURATIONS
+kafka: 
+  broker: 
+    address: 127.0.0.1:9092
+  zookeeper: 
+    connect: 127.0.0.1:2181
+    session-timeout: 12000
+    connection-timeout: 12000
+  producer: 
+    topic: 
+      name: test_rec
+      create: true
+      partitions: 1
+  consumer: 
+    group-key: pik-group
+    topic: 
+      name: test_send
+  default: 
+    message-key: pik.key
+    replication-factor: 1

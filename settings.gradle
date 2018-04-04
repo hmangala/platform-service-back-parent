@@ -1,0 +1,21 @@
+/**
+ * Copyright (C) Davinta Technologies 2017. All rights reserved.
+ * This software is the confidential and proprietary information
+ * of Davinta Technologies. You shall not disclose such Confidential Information
+ * and shall use it only in accordance with the terms and conditions
+ * entered into with Davinta Technologies.
+ */
+
+rootProject.name = 'platform-service-back-parent'
+
+FileTree buildFiles = fileTree(rootDir) {
+	include '**/*.gradle'
+	exclude 'build.gradle', '**/distribution.gradle', '**/settings.gradle', '.*'
+}
+
+String rootDirPath = rootDir.absolutePath + File.separator
+buildFiles.each { File buildFile ->
+	String buildFilePath = buildFile.parentFile.absolutePath
+	String projectPath = buildFilePath.replace(rootDirPath, '').replace(File.separator, ':')
+	include projectPath
+}

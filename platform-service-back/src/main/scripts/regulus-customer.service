@@ -1,0 +1,32 @@
+# ------------------------------------------------------------------
+# Author: Palaniappan Kathiresan
+# Title : Regulus Service Customer Service Script
+#
+# Description:
+#
+#         Regulus Service Customer Service Script.
+#
+# ------------------------------------------------------------------
+
+[Unit]
+Description=regulus service customer
+After=network.target
+
+[Service]
+User=aeusapp
+Group=aeusapp
+Type=forking
+PIDFile=/var/run/regulus-service-customer.pid
+ExecStart=/opt/davinta/regulus-service-customer/bin/regulus-customer start
+ExecStop=/opt/davinta/regulus-service-customer/bin/regulus-customer stop
+LimitFSIZE=infinity
+LimitCPU=infinity
+LimitAS=infinity
+LimitNOFILE=64000
+LimitNPROC=64000
+LimitMEMLOCK=infinity
+TasksMax=infinity
+TasksAccounting=false
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,95 @@
+/**
+ * Copyright (C) Davinta Technologies 2017. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Davinta Technologies. You shall not disclose such Confidential Information
+ * and shall use it only in accordance with the terms and conditions
+ * entered into with Davinta Technologies.
+ */
+
+ext.versionBuild = System.getenv("BUILD_NUMBER") ?: "1"
+
+applicationDistribution.from("src/main/resources/") {
+	into "conf"
+}
+
+applicationDistribution.from("src/main/scripts/") {
+	into "bin"
+	fileMode = 0550
+}
+
+jar {
+	from sourceSets.main.resources 
+	exclude("*.*")
+}
+
+startScripts {
+	classpath += files('$APP_HOME/XxxAPlaceHolderForConfxxX')
+	doLast {
+		def windowsScriptFile = file getWindowsScript()
+		def unixScriptFile    = file getUnixScript()
+		windowsScriptFile.text = windowsScriptFile.text.replace('%APP_HOME%\\lib\\XxxAPlaceHolderForConfxxX', '%APP_HOME%\\conf')
+		unixScriptFile.text  = unixScriptFile.text.replace('$APP_HOME/lib/XxxAPlaceHolderForConfxxX', '$APP_HOME/conf')
+	}
+}
+
+docker {
+	baseImage "openjdk:8-jdk-alpine"
+}
+
+distDocker {
+		runCommand "apk --update add bash coreutils curl nano tar"
+		runCommand "rm -rf /var/cache/apk/*"
+		runCommand "mkdir -p /var/log/davinta/${project.name}"
+}
+
+task distRpm(type: Rpm, dependsOn: 'distTar') {
+	def rpmVersionArray = version.split("\\.")
+	def rpmVersion = rpmVersionArray[0] + '.' + rpmVersionArray[1] + '.' + rpmVersionArray[2]
+
+	packageName "${project.name}" 
+	version "${rpmVersion}"
+	release "${versionBuild}"
+	os LINUX
+	type BINARY
+	arch NOARCH
+
+	user "aeusapp"
+	permissionGroup "aeusapp"
+
+	preInstall file('src/main/scripts/rpm/preinstall.sh')
+	postInstall file('src/main/scripts/rpm/postinstall.sh')
+	preUninstall file('src/main/scripts/rpm/preuninstall.sh')
+
+	directory("/var/log/davinta/${project.name}")
+
+	into "/opt/davinta/${project.name}-${version}-${release}"
+
+	from("src/main/resources") {
+		into "conf"
+	}
+
+	from("src/main/scripts") {
+		into "bin"
+		exclude '**/rpm/*.*'
+		fileMode = 0555
+	}
+
+	from("$buildDir/scripts") {
+		into "bin"
+		fileMode = 0550
+	}
+
+	from(configurations.runtime) {
+		into "lib"
+	}
+	
+	from(project.jar.outputs.files.singleFile) {
+		into "lib"
+	}
+
+	link("/opt/davinta/${project.name}-${version}-${release}/logs", "/var/log/davinta/${project.name}")
+	link("/opt/davinta/${project.name}", "/opt/davinta/${project.name}-${version}-${release}")
+}
+
+build.shouldRunAfter distRpm

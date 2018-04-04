@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) Davinta Technologies 2017. All rights reserved.
+
+    This software is the confidential and proprietary information
+    of Davinta Technologies. You shall not disclose such Confidential Information
+    and shall use it only in accordance with the terms and conditions
+    entered into with Davinta Technologies.
+
+-->
+<!DOCTYPE xml>
+<configuration debug="false">
+	<include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+
+	<springProperty name="logging.levels.org.springframework" source="logging.levels.org.springframework"/>
+	<logger name="org.springframework" level="${logging.levels.org.springframework}" />
+
+
+	<springProperty name="logging.levels.com.davinta.aeus" source="logging.levels.com.davinta.aeus"/>
+	<logger name="com.davinta.aeus" level="${logging.levels.com.davinta.aeus}" />
+
+
+	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>${CONSOLE_LOG_PATTERN}</pattern>
+			<charset>utf8</charset>
+		</encoder>
+	</appender>
+
+
+	<springProperty name="logging.appenders.rollingfile.directory" source="logging.appenders.rollingfile.directory"/>
+	<springProperty name="logging.appenders.rollingfile.prefix" source="logging.appenders.rollingfile.prefix"/>
+	<appender name="rollingfileSync" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${logging.appenders.rollingfile.directory}/${logging.appenders.rollingfile.prefix}.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${logging.appenders.rollingfile.directory}/${logging.appenders.rollingfile.prefix}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<maxFileSize>100MB</maxFileSize>
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>3GB</totalSizeCap>
+		</rollingPolicy>
+		<append>true</append>
+		<encoder>
+			<pattern>%d{ISO8601} %-5level {%thread} [%-40.40logger{39}] %m%n%wex</pattern>
+		</encoder>
+	</appender>
+
+
+	<appender name="rollingfile" class="ch.qos.logback.classic.AsyncAppender">
+		<appender-ref ref="rollingfileSync" />
+		<queueSize>512</queueSize>
+		<discardingThreshold>0</discardingThreshold>
+	</appender>
+
+
+	<springProperty name="logging.appenders.name" source="logging.appenders.name"/>
+	<root level="INFO">
+		<if condition='isDefined("logging.appenders.name")'>
+			<then>
+				<if condition='property("logging.appenders.name").contains("console")'>
+					<then>
+						<appender-ref ref="console"/>
+					</then>
+				</if>
+				<if condition='property("logging.appenders.name").contains("rollingfile")'>
+					<then>
+						<appender-ref ref="rollingfile"/>
+					</then>
+				</if>
+			</then>
+			<else>
+				<appender-ref ref="console"/>
+			</else>
+		</if>
+	</root>
+</configuration>

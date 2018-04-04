@@ -1,0 +1,184 @@
+#
+# Copyright (C) Davinta Technologies 2017. All rights reserved.
+#
+# This software is the confidential and proprietary information
+# of Davinta Technologies. You shall not disclose such Confidential Information
+# and shall use it only in accordance with the terms and conditions
+# entered into with Davinta Technologies.
+#
+
+#### REGULUS CUSTOMER SERVICE BOOTSTRAP CONFIGURATIONS
+
+## TOMCAT CONFIGURATIONS
+server:
+  port: 8200
+  display-name: platform-service-back
+  connection-timeout: 10000
+  compression.enabled: true
+  tomcat:
+    accept-count: 50
+    max-connections: 1024
+    max-threads: 100
+    min-spare-threads: 20
+  error:
+    include-stacktrace: never
+  ssl:
+    ciphers: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
+    client-auth: want
+    enabled-protocols: TLSv1.2
+    protocol: TLS
+
+
+## REST CLIENT CONFIGURATIONS
+rest:
+  client:
+    connection.pool.maxTotal: 200
+    connection.pool.defaultMaxPerRoute: 100
+    connection.timeout: 10000
+    connection.request.timeout: 10000
+    socket.timeout: 10000
+    read.timout: 120000
+    ssl:
+      trust-self-signed: true
+      hostname.verifier.enabled: false
+      enabled-protocols: TLSv1.2
+      protocol: TLS
+      
+  service:
+     adapter:
+      name: AdapterService
+     admin:
+      name: AdminService
+
+## SPRING CONFIGURATIONS
+spring:
+  application:
+    name: regulus-service-customer
+
+  ## DATASOURCE CONFIGURATIONS
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      connection-test-query: SELECT 1
+      pool-name: regulus-customer-db-pool
+      minimum-idle: 5
+      maximum-pool-size: 30
+      connection-timeout: 60000
+
+  ## JPA CONFIGURATIONS
+  jpa:
+    hibernate:
+      naming-strategy: org.hibernate.cfg.ImprovedNamingStrategy
+    sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL5Dialect
+
+  ## ZIPKIN CONFIGURATIONS
+  zipkin:
+    enabled: false
+
+  ## SLEUTH CONFIGURATIONS
+  sleuth:
+    enabled: false
+    sampler:
+      percentage: 0
+    scheduled:
+      skipPattern: "^org.*ConsulCatalogWatch$"
+    rxjava:
+      schedulers:
+        ignoredthreads: HystixMetricPoller,^RxComputation.*$
+
+  ## CONSUL CONFIGURATIONS
+  cloud:
+    consul:
+      enabled: false
+      discovery:
+        discovery:
+        register: false
+        instanceId: ${spring.application.name}:${vcap.application.instance_id:${spring.application.instance_id:${random.value}}}
+        healthCheckPath: /health
+        healthCheckInterval: 15s
+        prefer-ip-address: false
+        heartbeat:
+          enabled: false
+
+
+## EUREKA CONFIGURATIONS
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+
+## HYSTRIX CONFIGURATIONS
+hystrix:
+  threadpool:
+    default:
+      coreSize: 20
+      maximumSize: 40
+      keepAliveTimeMinutes: 2
+  command:
+    default:
+      fallback.isolation.semaphore.maxConcurrentRequests: 40
+      execution.timeout.enabled: false
+      execution.isolation.strategy: THREAD
+      execution.isolation.thread.timeoutInMilliseconds: 60000
+
+
+## JASYPT PROPERTY ENCRYPTOR
+jasypt:
+  encryptor:
+    algorithm: PBEWITHSHA1ANDDESEDE
+    stringOutputType: hexadecimal
+    bean: encryptorBean
+    providerName: SunJCE
+    password: ${JASYPT_ENCRYPTOR_PASSWORD:aeusapp@123}
+
+
+## MANAGEMENT CONFIGURATIONS
+management:
+  context-path: /manage
+  security:
+    enabled: false
+
+
+## FLYWAY CONFIGURATIONS
+flyway:
+  table: customer_schema_version
+  enabled: true
+  locations: classpath:db/migration
+  outOfOrder: false
+
+
+## LOGGING CONFIGURATIONS
+logging:
+  config: classpath:logback-spring.xml
+  levels:
+    org.springframework: INFO
+    com.davinta.aeus: TRACE
+  appenders:
+    name: console, rollingfile
+    rollingfile:
+      directory: /var/log/davinta/regulus-service-customer
+      prefix: regulus-service-customer
+
+
+## MARIA DB CONFIGURATIONS
+mariaDB4j:
+  database:
+    name: regulus-customer
+
+
+## ENTITY MANAGER CONFIGURATIONS
+entitymanager:
+  packagesToScan: com.davinta.aeus.bom
+
+
+## REGULUS CONFIGURATIONS
+regulus:
+  security:
+    defaultUser: regulus-service-customer
+    defaultRealm: regulus
+    defaultRoles: ROLE_MANAGE_CUSTOMER,ROLE_VIEW_CUSTOMER,ROLE_DELETE_CUSTOMER

@@ -1,0 +1,220 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Palaniappan Kathiresan
+# Title : Regulus Service Customer Startup Script
+#
+# Description:
+#
+#         Regulus Service Customer Startup Script.
+#
+# ------------------------------------------------------------------
+
+### BEGIN SYSV INIT INFO
+# chkconfig: 2345 90 10
+# description: allows to start customer service.
+# processname: regulus-service-customer
+# config: /opt/davinta/regulus-service-customer/conf/
+### END SYSV INIT INFO
+
+### BEGIN INIT INFO
+# Provides:       regulus-service-customer
+# Required-Start: $network
+# Required-Stop: $network
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description: regulus service customer
+# Description:    start and stop regulus service customer
+### END INIT INFO
+
+VERSION=1.0.0
+SUBJECT=regulus-service-customer
+
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+APPLICATION_DIR=$(dirname "$(readlink -f "$SCRIPT_DIR")")
+source ${SCRIPT_DIR}/includes/shflags
+
+APPLICATION_SCRIPT_NAME=$(echo ${APPLICATION_DIR} | awk -F "/" '{print $NF}')
+APPLICATION_SCRIPT_NAME=${APPLICATION_SCRIPT_NAME%-*-*}
+
+APPLICATION_NAME="regulus-service-customer"
+
+RUN_AS="aeusapp"
+
+PID_FILE=/var/run/${APPLICATION_NAME}.pid
+
+DEFINE_boolean 'debug' false 'enable debug mode' 'd'
+
+FLAGS_HELP="USAGE: $0 [flags] {start|stop|restart|status}"
+
+
+# --- Option processing --------------------------------------------
+
+# parse command line
+FLAGS "$@" || exit 1
+eval set -- "${FLAGS_ARGV}"
+
+
+# -- Body ---------------------------------------------------------
+
+debug() {
+	[ ${FLAGS_debug} -eq ${FLAGS_TRUE} ] && echo "DEBUG: $@" >&2
+}
+
+validate() {
+	if [ -z ${USER_ACTION} ]; then
+		echo "error: user action not specified"
+		exit 1;
+	elif [ -n "${USER_ACTION}" -a "${USER_ACTION}" != "start" -a "${USER_ACTION}" != "stop" -a "${USER_ACTION}" != "restart" -a "${USER_ACTION}" != "status" ]; then
+		echo "error: user action should be start/stop/restart/status: ${USER_ACTION}"
+		exit 1
+	fi
+}
+
+checkProcessStatus() {
+	if [ ! -z $(getProcessId) ] && kill -0 $(getProcessId) > /dev/null 2>&1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+getProcessId() {
+	echo $(ps -ef |grep ${APPLICATION_SCRIPT_NAME} | grep java | awk -F ' ' '{print $2}')
+}
+
+start() {
+	if checkProcessStatus
+	then
+		echo "error: ${APPLICATION_NAME} [pid: "$(getProcessId)"] is already running"
+		return 1
+	fi
+
+	echo "Starting ${APPLICATION_NAME}"
+
+	ulimit -f unlimited
+	ulimit -t unlimited
+	ulimit -v unlimited
+	ulimit -n 65535
+	ulimit -m unlimited
+	ulimit -u 65535
+
+	# tune glibc memory allocation, optimize for low fragmentation
+	# limit the number of arenas
+	export MALLOC_ARENA_MAX=2
+	# disable dynamic mmap threshold, see M_MMAP_THRESHOLD in "man mallopt"
+	export MALLOC_MMAP_THRESHOLD_=131072
+	export MALLOC_TRIM_THRESHOLD_=131072
+	export MALLOC_TOP_PAD_=131072
+	export MALLOC_MMAP_MAX_=65536
+	
+	local APPLICATION_CMD="nohup ${START_SCRIPT} &> /dev/null & echo \$!"
+	su -l -c "${APPLICATION_CMD}" ${RUN_AS} > "${PID_FILE}"
+
+	echo -ne "waiting for ${APPLICATION_NAME} to start"
+
+	for i in {1..10}; do
+		echo -ne "."
+		sleep 1
+	done
+
+	echo ""
+
+	if ! checkProcessStatus
+	then
+		echo "${APPLICATION_NAME} failed to start"
+		exit 1
+	fi
+
+	echo "${APPLICATION_NAME} started"
+}
+
+stop() {
+	if ! checkProcessStatus
+	then
+		echo "${APPLICATION_NAME} already stopped"
+		exit 0
+	fi
+
+	kill -TERM $(getProcessId) && rm -f "$PID_FILE"
+	
+	echo -ne "waiting for ${APPLICATION_NAME} to stop"
+
+	NOT_KILLED=1
+	for i in {1..60}; do
+		if checkProcessStatus
+		then
+			echo -ne "."
+			sleep 1
+		else
+			NOT_KILLED=0
+		fi
+	done
+
+	if [ ${NOT_KILLED} = 1 ]
+	then
+		kill -KILL $(getProcessId) && rm -f "$PID_FILE"
+		usleep 100000
+	fi
+
+	echo
+
+	if checkProcessStatus
+	then
+		echo "Cannot kill ${APPLICATION_NAME} [pid: "$(getProcessId)"]"
+		exit 1
+	fi
+	echo "${APPLICATION_NAME} stopped"
+}
+
+restart() {
+	if ! checkProcessStatus
+	then
+		echo "${APPLICATION_NAME} already stopped"
+	else
+		stop
+	fi
+	start
+}
+
+status() {
+	if checkProcessStatus
+	then
+		echo "${APPLICATION_NAME} [pid: "$(getProcessId)"] is running"
+	else
+		echo "${APPLICATION_NAME} not running"
+	fi
+}
+
+main() {
+	case "${USER_ACTION}" in
+		status)
+			status
+		;;
+		stop)
+			stop
+		;;
+		start)
+			start
+		;;
+		restart)
+			restart
+		;;
+		*)
+			echo "USAGE: $0 [flags] {start|stop|restart|status}"
+			exit 1
+	esac
+}
+
+if [ $# -eq 1 ]; then
+	USER_ACTION=$1
+fi
+
+START_SCRIPT="${SCRIPT_DIR}/${APPLICATION_SCRIPT_NAME}"
+
+validate "$@"
+
+main "$@"
+
+exit 0
+
+# -----------------------------------------------------------------

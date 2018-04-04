@@ -1,0 +1,10 @@
+^\Q/**\E$
+^\Q * Copyright (C) Davinta Technologies 2017. All rights reserved.\E$
+^\Q *\E$
+^\Q * This software is the confidential and proprietary information\E$
+^\Q * of Davinta Technologies. You shall not disclose such Confidential Information\E$
+^\Q * and shall use it only in accordance with the terms and conditions\E$
+^\Q * entered into with Davinta Technologies.\E$
+^\Q */\E$
+^$
+^.*$

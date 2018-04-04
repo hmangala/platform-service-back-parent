@@ -1,0 +1,108 @@
+/**
+ * Copyright (C) Davinta Technologies 2017. All rights reserved.
+ *
+ * This software is the confidential and proprietary information
+ * of Davinta Technologies. You shall not disclose such Confidential Information
+ * and shall use it only in accordance with the terms and conditions
+ * entered into with Davinta Technologies.
+ */
+
+pipeline {
+
+	agent { label 'aeus-release' }
+
+	options {
+		buildDiscarder(logRotator(numToKeepStr: '100'))
+		timeout(time: 30, unit: 'MINUTES')
+		timestamps()
+	}
+
+	parameters {
+		string(name: 'YUM_REPO_USER', defaultValue: 'ciuser', description: 'Please provide the password-less login enabled yum repo user.')
+		string(name: 'YUM_REPO_HOST', defaultValue: '172.19.229.93', description: 'Please provide the yum repo server.')
+		string(name: 'YUM_REPO_PATH', defaultValue: '/var/www/html/repos/rpms', description: 'Please provide the yum repo path.')
+	}
+
+	stages {
+		stage ('Checkout') {
+			steps {
+				script {
+					if (!(env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('hotfix-'))) {
+						echo 'Release allowed only on develop or hotfix branch!'
+						sh 'exit 1'
+					}
+				}
+				checkout scm
+			}
+		}
+
+		stage('PreChecks') {
+			steps {
+				sh './gradlew clean build $AEUS_RJENKINS_PRECHECK_OPTS --refresh-dependencies --info --stacktrace'
+			}
+		}
+
+		stage('Release') {
+			steps {
+				sh 'git config --global user.email "ciuser@davinta.com"'
+				sh 'git config --global user.name "CI User"'
+				sh 'git checkout $BRANCH_NAME'
+				sh './gradlew release-start $AEUS_RJENKINS_RELEASE_START_OPTS -DgitBranch=$BRANCH_NAME -x autoLintGradle --info --stacktrace'
+			}
+		}
+
+		stage('Build') {
+			steps {
+				sh './gradlew clean build distRpm $AEUS_RJENKINS_BUILD_OPTS --info --stacktrace'
+			}
+		}
+
+		stage('Analyze') {
+			steps {
+				withCredentials([usernamePassword(credentialsId: 'SONAR_CIUSER', usernameVariable: 'SONAR_USERNAME', passwordVariable: 'SONAR_PASSWORD')]) {
+					sh './gradlew sonarqube $AEUS_RJENKINS_ANALYZE_OPTS -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_USERNAME -Dsonar.password=$SONAR_PASSWORD --info --stacktrace'
+				}
+			}
+		}
+
+		stage('Publish') {
+			steps {
+				withCredentials([usernamePassword(credentialsId: 'ARCHIVA_CIUSER', usernameVariable: 'ARCHIVA_USERNAME', passwordVariable: 'ARCHIVA_PASSWORD')]) {
+					sh './gradlew publish $AEUS_RJENKINS_PUBLISH_OPTS -x autoLintGradle -DmavenUsername=$ARCHIVA_USERNAME -DmavenPassword=$ARCHIVA_PASSWORD -DsnapshotRepositoryUrl=$MAVEN_SNAPSHOT_REPOSITORY -DreleaseRepositoryUrl=$MAVEN_RELEASE_REPOSITORY --no-daemon --info --stacktrace'
+				}
+				script {
+					def rpmFiles = findFiles(glob: '**/*.rpm')
+					def rpmFile = rpmFiles[0]
+					def rpmFileName = rpmFiles[0].name
+					def rpmFileNameArray = rpmFileName.split("-")
+					def rpmFileNamePrefix = rpmFileNameArray[0] + '-' + rpmFileNameArray[1] + '-' + rpmFileNameArray[2]
+					sh "scp ${rpmFile} ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST}:${params.YUM_REPO_PATH}"
+				}
+			}
+		}
+
+		stage('Release Complete') {
+			steps {
+				sh './gradlew release-complete $AEUS_RJENKINS_RELEASE_COMPLETE_OPTS -x autoLintGradle --info --stacktrace'
+			}
+		}
+	}
+
+	post {
+		success {
+			emailext (recipientProviders: [[$class: 'RequesterRecipientProvider'], [$class: 'DevelopersRecipientProvider']], to: "DL-DAV-TECH-CICD-NOTIFY@davinta.com", subject:"RELEASE BUILD SUCCESS: ${currentBuild.fullDisplayName}", body: "Release Build Successful! Reports Attached. Please review the reports and take necessary actions.")
+			cleanWs()
+		}
+
+		failure {
+			emailext (recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']], to: "DL-DAV-TECH-CICD-NOTIFY@davinta.com", subject:"RELEASE BUILD FAILURE: ${currentBuild.fullDisplayName}", body: "Release Build Failed! Your commits is suspected to have caused the build failure. Please go to ${BUILD_URL} for details and resolve the build failure at the earliest.", attachLog: true, compressLog: true)
+			cleanWs()
+		}
+
+		aborted {
+			emailext (recipientProviders: [[$class: 'RequesterRecipientProvider'], [$class: 'DevelopersRecipientProvider']], subject:"RELEASE BUILD ABORTED: ${currentBuild.fullDisplayName}", body: "Release Build Aborted! Please go to ${BUILD_URL} and verify the build.", attachLog: false, compressLog: false)
+			cleanWs()
+		}
+	}
+
+}

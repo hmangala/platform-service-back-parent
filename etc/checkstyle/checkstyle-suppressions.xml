@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) Davinta Technologies 2017. All rights reserved.
+
+    This software is the confidential and proprietary information
+    of Davinta Technologies. You shall not disclose such Confidential Information
+    and shall use it only in accordance with the terms and conditions
+    entered into with Davinta Technologies.
+
+-->
+<!DOCTYPE suppressions PUBLIC
+    "-//Puppy Crawl//DTD Suppressions 1.1//EN"
+    "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+<suppressions>
+	<suppress files="package-info\.java" checks=".*" />
+	<suppress files="[\\/]test[\\/]" checks="RequireThis" />
+	<suppress files="[\\/]test[\\/]" checks="Javadoc*" />
+</suppressions>
